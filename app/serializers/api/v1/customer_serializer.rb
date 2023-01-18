@@ -16,6 +16,12 @@ module Api
         address(object.shipping_address)
       end
 
+      attribute :balance, if: proc { |_record, params|
+        params && params[:display_customer_balance] == true
+      } do |object|
+        { value: object.balance_value, time: object.balance_time }
+      end
+
       belongs_to :enterprise, links: {
         related: ->(object) {
           url_helpers.api_v1_enterprise_url(id: object.enterprise_id)

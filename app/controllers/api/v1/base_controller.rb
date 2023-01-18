@@ -114,6 +114,10 @@ module Api
         error_response.merge!(meta: { validation_errors: errors.to_a }) if errors.any?
         error_response
       end
+
+      def validate_query_parameter(name, status, msg)
+        render json_api_error(msg, status: status, source: { parameter: name })
+      end
     end
   end
 end

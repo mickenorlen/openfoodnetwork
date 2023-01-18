@@ -61,4 +61,18 @@ class CustomerSchema < JsonApiSchema
   def self.relationships
     [:enterprise]
   end
+
+  # Optional attributes included with "with"
+  def self.balance
+    {
+      balance: {
+        type: :object,
+        required: [:value, :time],
+        properties: {
+          value: { type: :number, format: :double },
+          time: { type: :string, format: "date-time" }
+        }
+      }
+    }
+  end
 end

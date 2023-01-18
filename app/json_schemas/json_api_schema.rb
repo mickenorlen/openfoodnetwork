@@ -76,8 +76,10 @@ class JsonApiSchema
 
     private
 
-    def data_properties(require_all: false)
-      required = require_all ? all_attributes : required_attributes
+    def data_properties(require_all: false, with: nil)
+      with_result = get_with(with)
+      attributes = get_attributes(with_result)
+      required = get_required(require_all, with, with_result)
 
       {
         id: { type: :string, example: "1" },
@@ -97,6 +99,58 @@ class JsonApiSchema
           end
         }
       }
+    end
+
+    # Example
+    # with: :my_method
+    # => with_result = my_method
+    # => attributes = attributes.merge(with_result)
+    #
+    # with: {name: :my_method, required: true, opts: {method_opt: true}}
+    # => with_result = my_method({method_opt: true})
+    # => attributes = attributes.merge(with_result)
+    # => required += with_result.keys
+    #
+    # with: [:my_method, :another_method]
+    # => with_result = my_method.merge(another_method)
+    # => attributes = attribtues.merge(with_result)
+    #
+    # To test use eg::
+    # => MySchema.collection(..., with: ...)
+    #     .dig(:properties, :data, :items, :properties, :attributes)
+    def get_with(with)
+      case with
+      when Symbol
+        public_send(with)
+      when Hash
+        with[:opts] && public_send(with[:name], with[:opts]) || public_send(with[:name])
+      when Array
+        obj = {}
+
+        with.each do |w|
+          obj.merge!(get_with(w))
+        end
+
+        obj
+      end
+    end
+
+    def get_required(require_all, with, with_result)
+      required = require_all ? all_attributes : required_attributes
+
+      if with.is_a?(Hash) && with[:required] == true && with_result.present?
+        required += with_result.keys
+      end
+
+      required
+    end
+
+    def get_attributes(with_result)
+      if [with_result, attributes].all?{ |obj| obj.respond_to?(:merge) }
+        attributes.merge(with_result)
+      else
+        attributes
+      end
     end
 
     def relationship_schema(name)

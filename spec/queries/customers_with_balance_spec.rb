@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 describe CustomersWithBalance do
-  subject(:customers_with_balance) { described_class.new(customer.enterprise.id) }
+  subject(:customer_with_balance) { described_class.new(customers: customer) }
 
   describe '#query' do
     let(:customer) { create(:customer) }
@@ -15,9 +15,81 @@ describe CustomersWithBalance do
       allow(OutstandingBalance).to receive(:new).and_return(outstanding_balance)
       expect(outstanding_balance).to receive(:statement)
 
-      customers_with_balance.query
+      customer_with_balance.query
     end
 
+    describe 'arguments' do
+      let(:current_time) { "2023-01-01T00:00:00" }
+      before { allow(DateTime).to receive(:current).and_return(current_time) }
+      # extract relevant attributes for testing query results
+      def id_balance_time(customers_with_balance)
+        customers_with_balance.map{ |c| [c.id, c.balance_value, c.balance_time] }
+      end
+
+      context 'without customers or enterprise' do
+        it 'raises argument error' do
+          expect{ described_class.new }.to raise_error(ArgumentError)
+        end
+      end
+
+      context 'with single customer' do
+        it 'returns balance with current datetime' do
+          cb = customer_with_balance.query
+          expect(id_balance_time(cb)).to eq([[customer.id, 0, current_time]])
+        end
+      end
+
+      context 'with multiple customers' do
+        let(:customers) { create_pair(:customer) }
+        let(:customers_with_balance) { described_class.new(customers: customers) }
+
+        it 'returns balance and current datetime for all' do
+          cb = customers_with_balance.query
+
+          expect(id_balance_time(cb)).to eq([
+                                              [customers.first.id, 0, current_time],
+                                              [customers.second.id, 0, current_time]
+                                            ])
+        end
+      end
+
+      context 'with enterprise' do
+        let(:enterprise) { create(:enterprise) }
+        let(:enterprise_with_balance) { described_class.new(enterprise: enterprise) }
+
+        it 'returns balance and current datetime for all customers in enterprise' do
+          customers = create_pair(:customer, enterprise: enterprise)
+          cb = enterprise_with_balance.query
+
+          expect(id_balance_time(cb)).to eq([
+                                              [customers.first.id, 0, current_time],
+                                              [customers.second.id, 0, current_time]
+                                            ])
+        end
+      end
+
+      context 'with customers and enterprise' do
+        let(:enterprise) { create(:enterprise) }
+        let(:enterprise2) { create(:enterprise) }
+        let(:customers) { create_pair(:customer, enterprise: enterprise) }
+        let(:customers2) { create_pair(:customer, enterprise: enterprise2) }
+        let(:enterprise_and_customers_with_balance) {
+          described_class.new(enterprise: enterprise,
+                              customers: [customers.second,
+                                          customers2.first])
+        }
+
+        it 'returns balance and current datetime for selected customers in enterprise' do
+          cb = enterprise_and_customers_with_balance.query
+
+          expect(id_balance_time(cb)).to eq([
+                                              [customers.second.id, 0, current_time]
+                                            ])
+        end
+      end
+    end
+
+    # Orders
     context 'when orders are in cart state' do
       before do
         create(:order, customer: customer, total: order_total, payment_total: 0, state: 'cart')
@@ -25,7 +97,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(0)
       end
     end
@@ -37,7 +109,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(0)
       end
     end
@@ -49,7 +121,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(0)
       end
     end
@@ -61,7 +133,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(0)
       end
     end
@@ -75,7 +147,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(-total)
       end
     end
@@ -91,7 +163,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(payment_total - total)
       end
     end
@@ -113,7 +185,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(payment_total - non_canceled_orders_total)
       end
     end
@@ -129,7 +201,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(payment_total - total)
       end
     end
@@ -145,7 +217,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(payment_total - total)
       end
     end
@@ -161,7 +233,7 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(payment_total - total)
       end
     end
@@ -178,14 +250,16 @@ describe CustomersWithBalance do
       end
 
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(payment_total - non_returned_orders_total)
       end
     end
 
     context 'when there are no orders' do
+      let(:customer) { create(:customer) }
+
       it 'returns the customer balance' do
-        customer = customers_with_balance.query.first
+        customer = customer_with_balance.query.first
         expect(customer.balance_value).to eq(0)
       end
     end

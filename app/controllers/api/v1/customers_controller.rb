@@ -10,15 +10,29 @@ module Api
       skip_authorization_check only: :index
 
       before_action :authorize_action, only: [:show, :update, :destroy]
+      # Query parameters
+      before_action :set_display_customer_balance, only: [:index] # Always show balance for show
 
       def index
         @pagy, customers = pagy(search_customers, pagy_options)
-
-        render json: Api::V1::CustomerSerializer.new(customers, pagination_options)
+        render json: Api::V1::CustomerSerializer.new(
+          customers,
+          pagination_options.merge({
+                                     params: {
+                                       display_customer_balance: @display_customer_balance
+                                     }
+                                   })
+        )
       end
 
       def show
-        render json: Api::V1::CustomerSerializer.new(customer, include_options)
+        render json: Api::V1::CustomerSerializer.new(
+          CustomersWithBalance.new(customers: customer).query.first,
+          {
+            include: [params.fetch(:include, [])].flatten.map(&:to_s),
+            params: { display_customer_balance: true },
+          }
+        )
       end
 
       def create
@@ -54,6 +68,16 @@ module Api
         @customer ||= Customer.find(params[:id])
       end
 
+      def set_display_customer_balance
+        val = params[:display_customer_balance]
+        return if val.nil?
+
+        unless val.in?(["true", "false", "1", "0"])
+          invalid_query_parameter(:display_customer_balance, :unprocessable_entity, "Not a boolean")
+        end
+        @display_customer_balance = ActiveModel::Type::Boolean.new.cast(val)
+      end
+
       def authorize_action
         authorize! action_name.to_sym, customer
       end
@@ -61,6 +85,11 @@ module Api
       def search_customers
         customers = visible_customers.includes(:bill_address, :ship_address)
         customers = customers.where(enterprise_id: params[:enterprise_id]) if params[:enterprise_id]
+
+        if @display_customer_balance
+          customers = CustomersWithBalance.new(customers: customers).query
+        end
+
         customers.ransack(params[:q]).result
       end
 
@@ -68,6 +97,10 @@ module Api
         current_api_user.customers.or(
           Customer.where(enterprise_id: editable_enterprises)
         )
+      end
+
+      def editable_enterprises
+        OpenFoodNetwork::Permissions.new(current_api_user).editable_enterprises.select(:id)
       end
 
       def customer_params
@@ -89,16 +122,6 @@ module Api
         transform_address!(attributes, :shipping_address, :ship_address)
 
         attributes
-      end
-
-      def editable_enterprises
-        OpenFoodNetwork::Permissions.new(current_api_user).editable_enterprises.select(:id)
-      end
-
-      def include_options
-        fields = [params.fetch(:include, [])].flatten
-
-        { include: fields.map(&:to_s) }
       end
     end
   end

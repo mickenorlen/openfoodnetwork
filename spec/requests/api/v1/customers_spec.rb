@@ -26,10 +26,12 @@ describe "Customers", type: :request do
     get "List customers" do
       tags "Customers"
       parameter name: :enterprise_id, in: :query, type: :string
+      parameter name: :display_customer_balance, in: :query, type: :boolean
       produces "application/json"
 
       response "200", "Customers list" do
         param(:enterprise_id) { enterprise1.id }
+        param(:display_customer_balance) { true }
         schema "$ref": "#/components/schemas/customers_collection"
 
         run_test!
@@ -102,6 +104,56 @@ describe "Customers", type: :request do
         get "/api/v1/customers", params: { page: "0" }
         expect(json_response_ids).to eq nil
         expect(json_error_detail).to eq 'expected :page >= 1; got "0"'
+      end
+    end
+
+    describe "query parameters" do
+      describe "display_customer_balance" do
+        context "when true" do
+          let(:time) { "2023-01-01T00:00:00" }
+
+          it "adds balance at current time to each customer" do
+            allow(DateTime).to receive(:current).and_return(time)
+            get "/api/v1/customers", params: { display_customer_balance: "true" }
+            balances = json_response[:data].map{ |c| c[:attributes][:balance] }
+            all_times_current = balances.all?{ |b| b["time"].to_datetime == time.to_datetime }
+            all_values_numbers = balances.all?{ |b| b["value"] == 0 }
+            expect([all_times_current, all_values_numbers]).to eq([true, true])
+          end
+        end
+
+        context "when received non boolean" do
+          it "returns unprocessable entity" do
+            get "/api/v1/customers", params: { display_customer_balance: "unknown" }
+            expect(response.status).to eq 422
+          end
+        end
+
+        context "when not recevied" do
+          it "does not add balances" do
+            get "/api/v1/customers"
+            balances = json_response[:data].map{ |c| c[:attributes][:balance] }
+            expect(balances.compact).to be_empty
+          end
+        end
+      end
+
+      context "without display_customer_balance" do
+        let(:time) { "2023-01-01T00:00:00" }
+
+        it "adds balance at current time to each customer when true" do
+          allow(DateTime).to receive(:current).and_return(time)
+          get "/api/v1/customers", params: { display_customer_balance: "true" }
+          balances = json_response[:data].map{ |c| c[:attributes][:balance] }
+          all_times_current = balances.all?{ |b| b["time"].to_datetime == time.to_datetime }
+          all_values_numbers = balances.all?{ |b| b["value"] == 0 }
+          expect([all_times_current, all_values_numbers]).to eq([true, true])
+        end
+
+        it "returns unprocessable entity for non boolean values" do
+          get "/api/v1/customers", params: { display_customer_balance: "unknown" }
+          expect(response.status).to eq 422
+        end
       end
     end
 
@@ -191,7 +243,7 @@ describe "Customers", type: :request do
 
       response "200", "Customer" do
         param(:id) { customer1.id }
-        schema "$ref": "#/components/schemas/customer"
+        schema CustomerSchema.schema(require_all: true, with: { name: :balance, required: true })
 
         run_test! do
           date_time_string =
