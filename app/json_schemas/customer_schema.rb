@@ -64,15 +64,6 @@ class CustomerSchema < JsonApiSchema
 
   # Optional attributes included with "with"
   def self.balance
-    {
-      balance: {
-        type: :object,
-        required: [:value, :time],
-        properties: {
-          value: { type: :number, format: :double },
-          time: { type: :string, format: "date-time" }
-        }
-      }
-    }
+    { balance: { type: :number, format: :double } }
   end
 end

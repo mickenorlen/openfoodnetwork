@@ -26,12 +26,13 @@ describe "Customers", type: :request do
     get "List customers" do
       tags "Customers"
       parameter name: :enterprise_id, in: :query, type: :string
-      parameter name: :display_customer_balance, in: :query, type: :boolean
+      parameter name: "extra_fields[customer]", in: :query, type: :string, example: :balance,
+                description: "Add extra fields to each customer"
       produces "application/json"
 
       response "200", "Customers list" do
         param(:enterprise_id) { enterprise1.id }
-        param(:display_customer_balance) { true }
+        param("extra_fields[customer]") { :balance }
         schema "$ref": "#/components/schemas/customers_collection"
 
         run_test!
@@ -108,24 +109,19 @@ describe "Customers", type: :request do
     end
 
     describe "query parameters" do
-      describe "display_customer_balance" do
-        context "when true" do
-          let(:time) { "2023-01-01T00:00:00" }
-
-          it "adds balance at current time to each customer" do
-            allow(DateTime).to receive(:current).and_return(time)
-            get "/api/v1/customers", params: { display_customer_balance: "true" }
+      describe "extra_fields[customer]" do
+        context "with balance" do
+          it "adds balance to each customer" do
+            get "/api/v1/customers", params: { extra_fields: { customer: :balance } }
             balances = json_response[:data].map{ |c| c[:attributes][:balance] }
-            all_times_current = balances.all?{ |b| b["time"].to_datetime == time.to_datetime }
-            all_values_numbers = balances.all?{ |b| b["value"] == 0 }
-            expect([all_times_current, all_values_numbers]).to eq([true, true])
+            expect(balances.all?{ |b| b.is_a? Numeric }).to eq(true)
           end
         end
 
-        context "when received non boolean" do
+        context "with unknown field" do
           it "returns unprocessable entity" do
-            get "/api/v1/customers", params: { display_customer_balance: "unknown" }
-            expect(response.status).to eq 422
+            get "/api/v1/customers", params: { extra_fields: { customer: :unknown } }
+            expect([response.status, json_error_detail]).to eq [422, "Unsupported fields: unknown"]
           end
         end
 
@@ -133,26 +129,8 @@ describe "Customers", type: :request do
           it "does not add balances" do
             get "/api/v1/customers"
             balances = json_response[:data].map{ |c| c[:attributes][:balance] }
-            expect(balances.compact).to be_empty
+            expect([response.status, balances.compact]).to eq [200, []]
           end
-        end
-      end
-
-      context "without display_customer_balance" do
-        let(:time) { "2023-01-01T00:00:00" }
-
-        it "adds balance at current time to each customer when true" do
-          allow(DateTime).to receive(:current).and_return(time)
-          get "/api/v1/customers", params: { display_customer_balance: "true" }
-          balances = json_response[:data].map{ |c| c[:attributes][:balance] }
-          all_times_current = balances.all?{ |b| b["time"].to_datetime == time.to_datetime }
-          all_values_numbers = balances.all?{ |b| b["value"] == 0 }
-          expect([all_times_current, all_values_numbers]).to eq([true, true])
-        end
-
-        it "returns unprocessable entity for non boolean values" do
-          get "/api/v1/customers", params: { display_customer_balance: "unknown" }
-          expect(response.status).to eq 422
         end
       end
     end

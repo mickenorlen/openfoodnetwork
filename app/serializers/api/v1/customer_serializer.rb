@@ -16,11 +16,9 @@ module Api
         address(object.shipping_address)
       end
 
-      attribute :balance, if: proc { |_record, params|
-        params && params[:display_customer_balance] == true
-      } do |object|
-        { value: object.balance_value, time: object.balance_time }
-      end
+      attribute :balance, if: proc { |record|
+        record.respond_to?(:balance_value)
+      }, &:balance_value
 
       belongs_to :enterprise, links: {
         related: ->(object) {

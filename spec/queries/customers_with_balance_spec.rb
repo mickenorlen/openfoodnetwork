@@ -19,11 +19,8 @@ describe CustomersWithBalance do
     end
 
     describe 'arguments' do
-      let(:current_time) { "2023-01-01T00:00:00" }
-      before { allow(DateTime).to receive(:current).and_return(current_time) }
-      # extract relevant attributes for testing query results
-      def id_balance_time(customers_with_balance)
-        customers_with_balance.map{ |c| [c.id, c.balance_value, c.balance_time] }
+      def id_balance(customers_with_balance)
+        customers_with_balance.map{ |c| [c.id, c.balance_value] }
       end
 
       context 'without customers or enterprise' do
@@ -32,10 +29,20 @@ describe CustomersWithBalance do
         end
       end
 
+      context 'with empty customers array' do
+        it 'returns empty customers array' do
+          create(:customer)
+          expect([
+                   described_class.new(customers: Customer.none).query,
+                   described_class.new(customers: []).query
+                 ]).to eq([[], []])
+        end
+      end
+
       context 'with single customer' do
-        it 'returns balance with current datetime' do
+        it 'returns balance' do
           cb = customer_with_balance.query
-          expect(id_balance_time(cb)).to eq([[customer.id, 0, current_time]])
+          expect(id_balance(cb)).to eq([[customer.id, 0]])
         end
       end
 
@@ -43,13 +50,10 @@ describe CustomersWithBalance do
         let(:customers) { create_pair(:customer) }
         let(:customers_with_balance) { described_class.new(customers: customers) }
 
-        it 'returns balance and current datetime for all' do
+        it 'returns balance' do
           cb = customers_with_balance.query
 
-          expect(id_balance_time(cb)).to eq([
-                                              [customers.first.id, 0, current_time],
-                                              [customers.second.id, 0, current_time]
-                                            ])
+          expect(id_balance(cb)).to eq([[customers.first.id, 0], [customers.second.id, 0]])
         end
       end
 
@@ -57,14 +61,11 @@ describe CustomersWithBalance do
         let(:enterprise) { create(:enterprise) }
         let(:enterprise_with_balance) { described_class.new(enterprise: enterprise) }
 
-        it 'returns balance and current datetime for all customers in enterprise' do
+        it 'returns balance for all customers in enterprise' do
           customers = create_pair(:customer, enterprise: enterprise)
           cb = enterprise_with_balance.query
 
-          expect(id_balance_time(cb)).to eq([
-                                              [customers.first.id, 0, current_time],
-                                              [customers.second.id, 0, current_time]
-                                            ])
+          expect(id_balance(cb)).to eq([[customers.first.id, 0], [customers.second.id, 0]])
         end
       end
 
@@ -74,17 +75,16 @@ describe CustomersWithBalance do
         let(:customers) { create_pair(:customer, enterprise: enterprise) }
         let(:customers2) { create_pair(:customer, enterprise: enterprise2) }
         let(:enterprise_and_customers_with_balance) {
-          described_class.new(enterprise: enterprise,
-                              customers: [customers.second,
-                                          customers2.first])
+          described_class.new(
+            enterprise: enterprise,
+            customers: [customers.second, customers2.first]
+          )
         }
 
-        it 'returns balance and current datetime for selected customers in enterprise' do
+        it 'returns balance for selected customers in enterprise' do
           cb = enterprise_and_customers_with_balance.query
 
-          expect(id_balance_time(cb)).to eq([
-                                              [customers.second.id, 0, current_time]
-                                            ])
+          expect(id_balance(cb)).to eq([[customers.second.id, 0]])
         end
       end
     end

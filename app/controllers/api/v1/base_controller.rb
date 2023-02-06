@@ -106,17 +106,15 @@ module Api
       end
 
       def json_api_error(message, **options)
-        { errors: [{ detail: message }] }.merge(options)
+        error_options = options.delete(:error_options) || {}
+
+        { errors: [{ detail: message }.merge(error_options)] }.merge(options)
       end
 
       def json_api_invalid(message, errors)
         error_response = { errors: [{ detail: message }] }
         error_response.merge!(meta: { validation_errors: errors.to_a }) if errors.any?
         error_response
-      end
-
-      def validate_query_parameter(name, status, msg)
-        render json_api_error(msg, status: status, source: { parameter: name })
       end
     end
   end
