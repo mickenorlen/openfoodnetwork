@@ -62,7 +62,7 @@ class CustomerSchema < JsonApiSchema
     [:enterprise]
   end
 
-  # Optional attributes included with "with"
+  # Optional attributes included with eg: CustomerSchema.schema(with: :balance)
   def self.balance
     { balance: { type: :number, format: :double } }
   end
