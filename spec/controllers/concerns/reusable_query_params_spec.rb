@@ -18,7 +18,7 @@ describe ReusableQueryParams do
               detail: "error message",
               source: { parameter: "param" },
               status: :unprocessable_entity,
-              title: I18n.t("api.query_param.error.title")
+              title: "Invalid query parameter"
             }]
           },
         status: :unprocessable_entity
@@ -52,7 +52,7 @@ describe ReusableQueryParams do
         expect(dummy_controller).to have_received(:invalid_query_param).with(
           "extra_fields[customer]",
           :unprocessable_entity,
-          I18n.t("api.query_param.error.extra_fields", fields: "unknown")
+          "Unsupported fields: unknown"
         )
       end
     end
