@@ -2,8 +2,8 @@
 
 require 'spec_helper'
 
-describe Api::V1::QueryParam do
-  let(:dummy_controller) { Api::V1::BaseController.new.extend Api::V1::QueryParam }
+describe ReusableQueryParams do
+  let(:dummy_controller) { Api::V1::BaseController.new.extend ReusableQueryParams }
 
   describe "#invalid_query_param" do
     it "renders error" do
