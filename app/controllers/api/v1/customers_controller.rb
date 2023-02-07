@@ -25,7 +25,7 @@ module Api
 
       def show
         render json: Api::V1::CustomerSerializer.new(
-          CustomersWithBalance.new(customers: customer).query.first,
+          CustomersWithBalance.new(Customer.where(id: params[:id])).query.first,
           {
             include: [params.fetch(:include, [])].flatten.map(&:to_s),
           }
@@ -74,7 +74,7 @@ module Api
         customers = customers.where(enterprise_id: params[:enterprise_id]) if params[:enterprise_id]
 
         if @extra_customer_fields.include?(:balance)
-          customers = CustomersWithBalance.new(customers: customers).query
+          customers = CustomersWithBalance.new(customers).query
         end
 
         customers.ransack(params[:q]).result

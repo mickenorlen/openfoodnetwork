@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 describe CustomersWithBalance do
-  subject(:customer_with_balance) { described_class.new(customers: customer) }
+  subject(:customer_with_balance) { described_class.new(Customer.where(id: customer)) }
 
   describe '#query' do
     let(:customer) { create(:customer) }
@@ -23,68 +23,19 @@ describe CustomersWithBalance do
         customers_with_balance.map{ |c| [c.id, c.balance_value] }
       end
 
-      context 'without customers or enterprise' do
-        it 'raises argument error' do
-          expect{ described_class.new }.to raise_error(ArgumentError)
+      context 'with customers collection' do
+        it 'returns balance' do
+          customers = create_pair(:customer)
+          cb = described_class.new(Customer.where(id: customers)).query
+
+          expect(id_balance(cb)).to eq([[customers.first.id, 0], [customers.second.id, 0]])
         end
       end
 
-      context 'with empty customers array' do
-        it 'returns empty customers array' do
+      context 'with empty customers collection' do
+        it 'returns empty customers collection' do
           create(:customer)
-          expect([
-                   described_class.new(customers: Customer.none).query,
-                   described_class.new(customers: []).query
-                 ]).to eq([[], []])
-        end
-      end
-
-      context 'with single customer' do
-        it 'returns balance' do
-          cb = customer_with_balance.query
-          expect(id_balance(cb)).to eq([[customer.id, 0]])
-        end
-      end
-
-      context 'with multiple customers' do
-        let(:customers) { create_pair(:customer) }
-        let(:customers_with_balance) { described_class.new(customers: customers) }
-
-        it 'returns balance' do
-          cb = customers_with_balance.query
-
-          expect(id_balance(cb)).to eq([[customers.first.id, 0], [customers.second.id, 0]])
-        end
-      end
-
-      context 'with enterprise' do
-        let(:enterprise) { create(:enterprise) }
-        let(:enterprise_with_balance) { described_class.new(enterprise: enterprise) }
-
-        it 'returns balance for all customers in enterprise' do
-          customers = create_pair(:customer, enterprise: enterprise)
-          cb = enterprise_with_balance.query
-
-          expect(id_balance(cb)).to eq([[customers.first.id, 0], [customers.second.id, 0]])
-        end
-      end
-
-      context 'with customers and enterprise' do
-        let(:enterprise) { create(:enterprise) }
-        let(:enterprise2) { create(:enterprise) }
-        let(:customers) { create_pair(:customer, enterprise: enterprise) }
-        let(:customers2) { create_pair(:customer, enterprise: enterprise2) }
-        let(:enterprise_and_customers_with_balance) {
-          described_class.new(
-            enterprise: enterprise,
-            customers: [customers.second, customers2.first]
-          )
-        }
-
-        it 'returns balance for selected customers in enterprise' do
-          cb = enterprise_and_customers_with_balance.query
-
-          expect(id_balance(cb)).to eq([[customers.second.id, 0]])
+          expect(described_class.new(Customer.none).query).to eq([])
         end
       end
     end

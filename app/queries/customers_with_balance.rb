@@ -3,18 +3,12 @@
 # Adds an aggregated 'balance_value' to each customer based on their order history
 #
 class CustomersWithBalance
-  def initialize(
-    enterprise: nil,  # Filter customers by enterprise
-    customers: nil    # Filter customers by record/collection of customers/ids
-  )
-    @enterprise = enterprise
+  def initialize(customers)
     @customers = customers
-
-    validate_arguments
   end
 
   def query
-    filtered_customers.
+    @customers.
       joins(left_join_complete_orders).
       group("customers.id").
       select("customers.*").
@@ -22,21 +16,6 @@ class CustomersWithBalance
   end
 
   private
-
-  attr_reader :enterprise
-
-  def validate_arguments
-    return unless [enterprise, @customers].all?(&:nil?)
-
-    raise(ArgumentError, 'Missing enterprise or customers argument')
-  end
-
-  def filtered_customers
-    f_customers = Customer
-    f_customers = f_customers.of(enterprise) if enterprise.present?
-    f_customers = f_customers.where(id: @customers) if @customers
-    f_customers
-  end
 
   # The resulting orders are in states that belong after the checkout. Only these can be considered
   # for a customer's balance.
