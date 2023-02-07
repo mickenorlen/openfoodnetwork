@@ -26,9 +26,7 @@ module Api
       def show
         render json: Api::V1::CustomerSerializer.new(
           CustomersWithBalance.new(Customer.where(id: params[:id])).query.first,
-          {
-            include: [params.fetch(:include, [])].flatten.map(&:to_s),
-          }
+          include_options
         )
       end
 
@@ -109,6 +107,12 @@ module Api
 
       def editable_enterprises
         OpenFoodNetwork::Permissions.new(current_api_user).editable_enterprises.select(:id)
+      end
+
+      def include_options
+        fields = [params.fetch(:include, [])].flatten
+
+        { include: fields.map(&:to_s) }
       end
     end
   end
