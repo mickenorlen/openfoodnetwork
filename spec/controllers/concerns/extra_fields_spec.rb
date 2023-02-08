@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 describe ExtraFields do
-  let(:dummy_controller) { Api::V1::BaseController.new { include ExtraFields }}
+  let(:dummy_controller) { Api::V1::BaseController.new.extend ExtraFields }
 
   describe "#invalid_query_param" do
     it "renders error" do
