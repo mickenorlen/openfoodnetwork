@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # To be included in api controllers for handeling query params
-module ReusableQueryParams
+module ExtraFields
   extend ActiveSupport::Concern
 
   def invalid_query_param(name, status, msg)

@@ -6,7 +6,7 @@ module Api
   module V1
     class CustomersController < Api::V1::BaseController
       include AddressTransformation
-      include ReusableQueryParams
+      include ExtraFields
 
       skip_authorization_check only: :index
 

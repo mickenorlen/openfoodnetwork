@@ -2,8 +2,8 @@
 
 require 'spec_helper'
 
-describe ReusableQueryParams do
-  let(:dummy_controller) { Api::V1::BaseController.include(ReusableQueryParams).new }
+describe ExtraFields do
+  let(:dummy_controller) { Api::V1::BaseController.new { include ExtraFields }}
 
   describe "#invalid_query_param" do
     it "renders error" do
